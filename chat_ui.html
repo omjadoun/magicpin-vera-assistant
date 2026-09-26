@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>magicpin Vera Assistant — Live WhatsApp Chat Simulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background: #0c1317; color: #e9edef; height: 100vh; display: flex; overflow: hidden; }
+        
+        /* Layout Grid */
+        #app { display: flex; width: 100vw; height: 100vh; background: #111b21; }
+        
+        /* Left Sidebar: Merchant Selector & Quick Info */
+        .sidebar { width: 340px; background: #111b21; border-right: 1px solid #222d34; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 16px 20px; background: #202c33; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222d34; }
+        .sidebar-title { font-size: 16px; font-weight: 600; color: #e9edef; display: flex; align-items: center; gap: 8px; }
+        .badge { background: #00a884; color: #111b21; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+        
+        .merchant-list { flex: 1; overflow-y: auto; padding: 12px 8px; }
+        .section-label { font-size: 11px; text-transform: uppercase; color: #8696a0; font-weight: 600; padding: 8px 12px; letter-spacing: 0.5px; }
+        .merchant-card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; margin-bottom: 4px; }
+        .merchant-card:hover { background: #202c33; }
+        .merchant-card.active { background: #2a3942; border-left: 3px solid #00a884; }
+        .merchant-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #374248; flex-shrink: 0; }
+        .merchant-meta { flex: 1; min-width: 0; }
+        .merchant-name { font-size: 14px; font-weight: 600; color: #e9edef; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .merchant-cat { font-size: 12px; color: #8696a0; }
+        
+        .sidebar-footer { padding: 16px; background: #182229; border-top: 1px solid #222d34; }
+        .api-links { display: flex; gap: 8px; font-size: 12px; }
+        .api-links a { color: #53bdeb; text-decoration: none; padding: 6px 10px; background: #202c33; border-radius: 6px; }
+        .api-links a:hover { text-decoration: underline; }
+
+        /* Main Chat Area */
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; }
+        
+        /* Chat Header */
+        .chat-header { height: 60px; background: #202c33; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222d34; z-index: 10; }
+        .vera-info { display: flex; align-items: center; gap: 12px; }
+        .vera-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00a884, #005c4b); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .vera-name-row { display: flex; align-items: center; gap: 6px; }
+        .vera-name { font-size: 15px; font-weight: 600; color: #e9edef; }
+        .verified-badge { color: #00a884; font-size: 14px; }
+        .vera-status { font-size: 12px; color: #00a884; font-weight: 500; }
+        
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .header-btn { background: #2a3942; color: #d1d7db; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+        .header-btn:hover { background: #374248; color: #fff; }
+
+        /* Message Stream with WhatsApp Wallpaper Texture */
+        .messages-container { flex: 1; overflow-y: auto; padding: 20px 60px; display: flex; flex-direction: column; gap: 10px; background-color: #0b141a; background-image: radial-gradient(#182229 1.5px, transparent 1.5px); background-size: 24px 24px; }
+        
+        .date-divider { text-align: center; margin: 12px 0; }
+        .date-chip { background: #182229; color: #8696a0; font-size: 11px; padding: 5px 12px; border-radius: 8px; font-weight: 500; text-transform: uppercase; }
+
+        .message-row { display: flex; margin-bottom: 4px; }
+        .message-row.vera { justify-content: flex-start; }
+        .message-row.user { justify-content: flex-end; }
+
+        .bubble { max-width: 68%; padding: 8px 12px 6px 12px; border-radius: 8px; font-size: 14px; line-height: 1.45; position: relative; word-break: break-word; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
+        .bubble.vera { background: #202c33; color: #e9edef; border-top-left-radius: 0; }
+        .bubble.user { background: #005c4b; color: #e9edef; border-top-right-radius: 0; }
+
+        .bubble-text { white-space: pre-wrap; }
+        .bubble-footer { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; }
+        .bubble-time { font-size: 10px; color: #8696a0; }
+        .read-receipt { font-size: 12px; color: #53bdeb; }
+
+        /* CTA Interactive Chips */
+        .cta-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .cta-chip { background: #00a884; color: #111b21; border: none; padding: 6px 14px; border-radius: 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: transform 0.1s, background 0.15s; }
+        .cta-chip:hover { background: #02906f; transform: translateY(-1px); }
+        .cta-chip.secondary { background: #374248; color: #e9edef; }
+        .cta-chip.secondary:hover { background: #4a575f; }
+
+        /* Quick Suggestions Bar */
+        .quick-bar { background: #111b21; padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto; border-top: 1px solid #222d34; }
+        .quick-pill { background: #202c33; color: #aebac1; border: 1px solid #2a3942; border-radius: 16px; padding: 6px 14px; font-size: 12px; white-space: nowrap; cursor: pointer; transition: all 0.15s; }
+        .quick-pill:hover { background: #2a3942; color: #e9edef; border-color: #00a884; }
+
+        /* Input Controls */
+        .input-bar { height: 62px; background: #202c33; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #222d34; }
+        .input-box { flex: 1; background: #2a3942; border: none; border-radius: 8px; padding: 10px 16px; color: #e9edef; font-size: 14px; outline: none; }
+        .input-box::placeholder { color: #8696a0; }
+        .send-btn { width: 42px; height: 42px; border-radius: 50%; background: #00a884; border: none; color: #111b21; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; font-size: 18px; font-weight: bold; }
+        .send-btn:hover { background: #02906f; }
+
+        /* Live State Inspector Panel */
+        .inspector { width: 300px; background: #111b21; border-left: 1px solid #222d34; padding: 16px; display: flex; flex-direction: column; gap: 14px; font-size: 12px; }
+        .inspector-title { font-size: 14px; font-weight: 600; color: #e9edef; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222d34; padding-bottom: 8px; }
+        .inspector-card { background: #202c33; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .inspector-label { color: #8696a0; font-size: 11px; text-transform: uppercase; font-weight: 600; }
+        .inspector-val { color: #00a884; font-weight: 600; font-size: 13px; font-family: monospace; }
+        .inspector-text { color: #d1d7db; font-size: 12px; line-height: 1.4; }
+
+        /* Typing Animation */
+        .typing { display: inline-flex; align-items: center; gap: 4px; padding: 10px 16px; background: #202c33; border-radius: 12px; }
+        .dot { width: 6px; height: 6px; background: #8696a0; border-radius: 50%; animation: pulse 1.4s infinite ease-in-out; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 900px) {
+            #app { flex-direction: column; }
+            .sidebar { width: 100%; height: 35vh; flex: none; border-right: none; border-bottom: 1px solid #222d34; }
+            .chat-area { flex: 1; height: 65vh; width: 100%; }
+            .inspector { display: none !important; position: absolute; right: 0; top: 0; bottom: 0; z-index: 100; box-shadow: -5px 0 15px rgba(0,0,0,0.5); width: 80%; }
+            .inspector.show-mobile { display: flex !important; }
+            .messages-container { padding: 15px; }
+            .bubble { max-width: 85%; }
+            .header-actions { flex-wrap: wrap; justify-content: flex-end; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- Left Sidebar: Merchant Profile Selector -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <span>Vera Assistant</span>
+                <span class="badge">LIVE API</span>
+            </div>
+        </div>
+        <div class="section-label">Select Merchant Persona</div>
+        <div class="merchant-list" id="merchantList">
+            <!-- Dynamically populated -->
+        </div>
+        <div class="sidebar-footer">
+            <div class="api-links">
+                <a href="/docs" target="_blank">Swagger Docs</a>
+                <a href="/v1/metadata" target="_blank">Metadata</a>
+                <a href="/v1/healthz" target="_blank">Healthz</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Window -->
+    <div class="chat-area">
+        <div class="chat-header">
+            <div class="vera-info">
+                <div class="vera-avatar">🪄</div>
+                <div>
+                    <div class="vera-name-row">
+                        <span class="vera-name">Vera (magicpin)</span>
+                        <span class="verified-badge">✔</span>
+                    </div>
+                    <div class="vera-status" id="veraStatus">online</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" onclick="resetConversation()">🔄 Reset Chat</button>
+                <button class="header-btn" onclick="toggleInspector()">📊 State Inspector</button>
+            </div>
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            <div class="date-divider"><span class="date-chip">Today</span></div>
+            <!-- Messages rendered dynamically -->
+        </div>
+
+        <!-- Pre-canned Suggestions for Instant Stress Testing -->
+        <div class="quick-bar" id="quickBar">
+            <div class="quick-pill" onclick="sendQuick('I want to join magicpin')">🚀 "I want to join"</div>
+            <div class="quick-pill" onclick="sendQuick('kitna charge lagega?')">💰 "Kitna charge lagega?"</div>
+            <div class="quick-pill" onclick="sendQuick('is it safe?')">🔒 "Is it safe?"</div>
+            <div class="quick-pill" onclick="sendQuick('what if I want to pause?')">⏸️ "How to pause?"</div>
+            <div class="quick-pill" onclick="sendQuick('Can you file my GST returns?')">🧾 "Can you file GST?"</div>
+            <div class="quick-pill" onclick="sendQuick('How will delivery work in heavy monsoon rains?')">🌧️ "Monsoon delivery?"</div>
+            <div class="quick-pill" onclick="sendQuick('STOP')">🛑 "STOP"</div>
+        </div>
+
+        <!-- Chat Input Bar -->
+        <div class="input-bar">
+            <input type="text" class="input-box" id="msgInput" placeholder="Type a message (e.g. 'I want to join', 'how much?', or in Hindi)..." onkeydown="handleKeyDown(event)">
+            <button class="send-btn" id="sendBtn" onclick="sendUserMessage()">➤</button>
+        </div>
+    </div>
+
+    <!-- Right Sidebar: Live State Inspector -->
+    <div class="inspector" id="inspectorPanel">
+        <div class="inspector-title">
+            <span>State Inspector</span>
+            <span style="color:#00a884;">● Realtime</span>
+        </div>
+        <div class="inspector-card">
+            <div class="inspector-label">Active Merchant</div>
+            <div class="inspector-val" id="inspMerchant">Dr. Meera</div>
+            <div class="inspector-text" id="inspLocality">Dentist • Saket, Delhi</div>
+        </div>
+        <div class="inspector-card">
+            <div class="inspector-label">Conversation State</div>
+            <div class="inspector-val" id="inspState">DISCOVERY</div>
+        </div>
+        <div class="inspector-label">Detected Intent</div>
+            <div class="inspector-val" id="inspIntent">None</div>
+        <div class="inspector-card">
+            <div class="inspector-label">Detected Language</div>
+            <div class="inspector-val" id="inspLang">en</div>
+        </div>
+        <div class="inspector-card">
+            <div class="inspector-label">Auto-Reply Streak</div>
+            <div class="inspector-val" id="inspAuto">0 / 3</div>
+        </div>
+        <div class="inspector-card">
+            <div class="inspector-label">Engine Rationale</div>
+            <div class="inspector-text" id="inspRationale">Awaiting merchant inbound turn...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const MERCHANTS = [
+    {
+        id: "m_001_drmeera_dentist_delhi",
+        name: "Dr. Meera",
+        clinic: "Dr. Meera's Dental Clinic",
+        cat: "Dentist",
+        locality: "Saket, Delhi",
+        icon: "🦷",
+        initialMsg: "Dr. Meera, compliance update: Dental Council of India circular 2026-11-04 issued guidance regarding 'DCI revised radiograph dose limits effective 2026-12-15'. Maximum dose per IOPA exposure drops from 1.5 mSv to 1.0 mSv. Digital RVG sensors unaffected.\n\nWant me to run a quick 2-minute checklist to audit your setup before the deadline?",
+        cta: "binary_yes_no"
+    },
+    {
+        id: "m_006_southindiancafe_restaurant_bangalore",
+        name: "Suresh",
+        clinic: "South Indian Cafe",
+        cat: "Restaurant",
+        locality: "Indiranagar, Bangalore",
+        icon: "🍲",
+        initialMsg: "Suresh, here is a ready starter structure for your corporate bulk thali package in Indiranagar:\n• Tier 1 (Small Batch): ₹149 per package\n• Tier 2 (Standard): ₹134 per package + Free Delivery\n• Tier 3 (Bulk): ₹119 per package + Bonus value add\n\nI have prepared the draft post and messaging copy. Want me to finalize it so you can review and launch?",
+        cta: "binary_yes_no"
+    },
+    {
+        id: "m_020_renu_salon_lucknow",
+        name: "Renu",
+        clinic: "Glamour Looks Salon",
+        cat: "Salon",
+        locality: "Hazratganj, Lucknow",
+        icon: "💇",
+        initialMsg: "Hi Renu, Vera checking in! Quick heads-up: nearby searches for hair spa and styling in Hazratganj jumped 34% this week. I've prepared a 1-click preview draft promoting your ₹499 package.\n\nShall I share the preview with you now?",
+        cta: "binary_yes_no"
+    },
+    {
+        id: "m_008_zenyoga_gym_chennai",
+        name: "Vikram",
+        clinic: "Zen Yoga & Fitness",
+        cat: "Gym & Fitness",
+        locality: "T. Nagar, Chennai",
+        icon: "🧘",
+        initialMsg: "Vikram, milestone alert: Zen Yoga & Fitness reached 94 reviews on Google Maps — just 6 away from crossing 100! Reaching 100 boosts your local map search rank across T. Nagar.\n\nWant me to generate a 1-click review-request template you can send to recent happy members?",
+        cta: "binary_yes_no"
+    },
+    {
+        id: "m_009_apollo_pharmacy_jaipur",
+        name: "Ramesh",
+        clinic: "Apollo Pharmacy",
+        cat: "Pharmacy",
+        locality: "Malviya Nagar, Jaipur",
+        icon: "💊",
+        initialMsg: "Ramesh, urgent quality notice: voluntary recall announced for Metformin 500mg SR (batches: B-8812, B-8814) by Sun Pharma due to sub-potency (no safety risk, standard replacement).\n\nWant me to draft a reassuring replacement advisory note and outline the distributor return workflow?",
+        cta: "binary_yes_no"
+    }
+];
+
+let activeMerchant = MERCHANTS[0];
+let conversationId = "conv_ui_" + Date.now();
+let turnCount = 1;
+
+function init() {
+    renderMerchantList();
+    selectMerchant(activeMerchant.id);
+}
+
+function renderMerchantList() {
+    const container = document.getElementById("merchantList");
+    container.innerHTML = MERCHANTS.map(m => `
+        <div class="merchant-card ${m.id === activeMerchant.id ? 'active' : ''}" onclick="selectMerchant('${m.id}')">
+            <div class="merchant-avatar">${m.icon}</div>
+            <div class="merchant-meta">
+                <div class="merchant-name">${m.name} (${m.clinic})</div>
+                <div class="merchant-cat">${m.cat} • ${m.locality}</div>
+            </div>
+        </div>
+    `).join("");
+}
+
+function selectMerchant(id) {
+    activeMerchant = MERCHANTS.find(m => m.id === id);
+    renderMerchantList();
+    conversationId = "conv_ui_" + activeMerchant.id + "_" + Date.now();
+    turnCount = 1;
+
+    // Update Inspector
+    document.getElementById("inspMerchant").innerText = `${activeMerchant.name} (${activeMerchant.clinic})`;
+    document.getElementById("inspLocality").innerText = `${activeMerchant.cat} • ${activeMerchant.locality}`;
+    document.getElementById("inspState").innerText = "PITCH";
+    document.getElementById("inspIntent").innerText = "trigger_inbound";
+    document.getElementById("inspRationale").innerText = "Initial proactive trigger composed from grounded context.";
+
+    // Clear and set greeting
+    const container = document.getElementById("messagesContainer");
+    container.innerHTML = `<div class="date-divider"><span class="date-chip">Today</span></div>`;
+    addMessage("vera", activeMerchant.initialMsg, activeMerchant.cta);
+}
+
+function formatTime() {
+    const d = new Date();
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function addMessage(role, text, cta) {
+    const container = document.getElementById("messagesContainer");
+    const row = document.createElement("div");
+    row.className = `message-row ${role}`;
+
+    let ctaHtml = "";
+    if (role === "vera" && cta) {
+        if (cta === "single_choice_confirm" || cta === "confirm") {
+            ctaHtml = `
+                <div class="cta-actions">
+                    <button class="cta-chip" onclick="sendQuick('CONFIRM')">✅ CONFIRM</button>
+                </div>
+            `;
+        } else if (cta === "binary_yes_no" || cta === "हाँ / ना" || cta === "Haan / Nahi") {
+            ctaHtml = `
+                <div class="cta-actions">
+                    <button class="cta-chip" onclick="sendQuick('Yes, let\\'s do it')">Yes, let's do it</button>
+                    <button class="cta-chip secondary" onclick="sendQuick('Not right now')">No thanks</button>
+                </div>
+            `;
+        } else if (cta.includes("preview")) {
+            ctaHtml = `
+                <div class="cta-actions">
+                    <button class="cta-chip" onclick="sendQuick('Send preview')">Send 1-Click Preview</button>
+                </div>
+            `;
+        }
+    }
+
+    row.innerHTML = `
+        <div class="bubble ${role}">
+            <div class="bubble-text">${escapeHtml(text)}</div>
+            ${ctaHtml}
+            <div class="bubble-footer">
+                <span class="bubble-time">${formatTime()}</span>
+                ${role === 'user' ? '<span class="read-receipt">✔✔</span>' : ''}
+            </div>
+        </div>
+    `;
+    container.appendChild(row);
+    container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+    const container = document.getElementById("messagesContainer");
+    const typingRow = document.createElement("div");
+    typingRow.id = "typingIndicator";
+    typingRow.className = "message-row vera";
+    typingRow.innerHTML = `
+        <div class="typing">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
+    `;
+    container.appendChild(typingRow);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+    const el = document.getElementById("typingIndicator");
+    if (el) el.remove();
+}
+
+async function sendUserMessage() {
+    const input = document.getElementById("msgInput");
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+
+    addMessage("user", text);
+    showTyping();
+    document.getElementById("veraStatus").innerText = "typing...";
+
+    try {
+        const payload = {
+            conversation_id: conversationId,
+            merchant_id: activeMerchant.id,
+            from_role: "merchant",
+            message: text,
+            turn_number: ++turnCount,
+            initial_message: turnCount <= 2 ? activeMerchant.initialMsg : undefined
+        };
+
+        const res = await fetch("/v1/reply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        removeTyping();
+        document.getElementById("veraStatus").innerText = "online";
+
+        if (data.action === "send") {
+            addMessage("vera", data.body, data.cta);
+        } else if (data.action === "wait") {
+            addMessage("vera", `⏱️ [Auto-Reply Wait Mode: Vera paused for ${data.wait_seconds || 86400}s to avoid messaging loops]`);
+        } else if (data.action === "end") {
+            addMessage("vera", `🔒 [Conversation Gracefully Closed: Outreach suppressed]`);
+        }
+
+        // Update Inspector from server response
+        if (data.rationale) document.getElementById("inspRationale").innerText = data.rationale;
+        if (data.state) document.getElementById("inspState").innerText = data.state;
+        if (data.intent) document.getElementById("inspIntent").innerText = data.intent;
+        if (data.language) document.getElementById("inspLang").innerText = data.language;
+    } catch (err) {
+        removeTyping();
+        document.getElementById("veraStatus").innerText = "online";
+        addMessage("vera", "Sorry, I had trouble reaching the server. Please check that bot.py is running!");
+    }
+}
+
+function sendQuick(text) {
+    document.getElementById("msgInput").value = text;
+    sendUserMessage();
+}
+
+function handleKeyDown(e) {
+    if (e.key === "Enter") {
+        sendUserMessage();
+    }
+}
+
+function resetConversation() {
+    selectMerchant(activeMerchant.id);
+}
+
+function toggleInspector() {
+    const p = document.getElementById("inspectorPanel");
+    if (window.innerWidth <= 900) {
+        p.classList.toggle("show-mobile");
+    } else {
+        p.style.display = p.style.display === "none" ? "flex" : "none";
+    }
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
