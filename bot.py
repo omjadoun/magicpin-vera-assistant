@@ -1208,7 +1208,23 @@ class ReplyRequest(BaseModel):
 
 CHAT_UI_PATH = Path(__file__).parent / "chat_ui.html"
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
+async def root():
+    return {
+        "service": "magicpin Vera Merchant Assistant API",
+        "version": VERSION,
+        "status": "online",
+        "docs": "/docs",
+        "endpoints": {
+            "healthz": "/v1/healthz",
+            "metadata": "/v1/metadata",
+            "context": "/v1/context",
+            "tick": "/v1/tick",
+            "reply": "/v1/reply"
+        }
+    }
+
+
 @app.get("/chat", response_class=HTMLResponse)
 async def chat_ui():
     if CHAT_UI_PATH.exists():
